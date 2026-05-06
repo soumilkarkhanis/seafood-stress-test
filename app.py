@@ -868,9 +868,58 @@ with st.spinner("Running analysis..."):
                                                    shock_dict, top_n=8,
                                                    exclude_current_suppliers=False,
                                                    exclude_shocked_countries=True)
-        comparison_df = pd.DataFrame()
-        plan = {}
-        profile_change_df = pd.DataFrame()
+        # Firm diversification
+        try:
+            firm_profile = {c: v for c, v in sourcing_vector.items()}
+            total = sum(firm_profile.values())
+            firm_profile = {c: v/total for c, v in firm_profile.items()}
+            reduce_from = [c for c in shock_dict.keys() if firm_profile.get(c, 0) > 0]
+            alts_div = recommend_alternative_suppliers(
+                species, list(sourcing_vector.keys())[0], shock_dict,
+                top_n=5, min_export_share=0.001,
+                exclude_current_suppliers=False,
+                exclude_shocked_countries=True)
+            alts_div = alts_div[~alts_div["country"].isin(shock_dict.keys())]
+            add_to = alts_div["country"].tolist()
+            if reduce_from and add_to:
+                diversified = dict(firm_profile)
+                reduce_total = sum(diversified.get(c,0) for c in reduce_from)
+                actual_shift = min(shift_share, reduce_total)
+                red_w = {c: diversified.get(c,0)/reduce_total for c in reduce_from}
+                for c in reduce_from:
+                    diversified[c] = diversified.get(c,0) - actual_shift * red_w[c]
+                sc = supplier_scores(species, shock_dict, min_export_share=0.001)
+                sc = sc[sc["country"].isin(add_to)]
+                total_sc = sc["supplier_score"].sum()
+                add_w = {r["country"]: r["supplier_score"]/total_sc for _,r in sc.iterrows()} if total_sc > 0 else {c: 1/len(add_to) for c in add_to}
+                for c in add_to:
+                    diversified[c] = diversified.get(c,0) + actual_shift * add_w.get(c,0)
+                total_div = sum(max(0,v) for v in diversified.values())
+                diversified = {c: max(0,v)/total_div for c,v in diversified.items()}
+                cur_exp = exposure_from_profile(species, firm_profile, shock_dict)
+                div_exp = exposure_from_profile(species, diversified, shock_dict)
+                comparison_df = pd.DataFrame([
+                    {"portfolio": "Current sourcing", **cur_exp},
+                    {"portfolio": "Diversified sourcing", **div_exp},
+                ])
+                plan = {"reduced_from": reduce_from, "added_to": add_to, "actual_shift_share": actual_shift}
+                all_c = sorted(set(firm_profile.keys()) | set(diversified.keys()))
+                profile_change_df = pd.DataFrame([{
+                    "country": c,
+                    "current_share": firm_profile.get(c,0),
+                    "diversified_share": diversified.get(c,0),
+                    "change": diversified.get(c,0) - firm_profile.get(c,0),
+                    "abs_change": abs(diversified.get(c,0) - firm_profile.get(c,0))
+                } for c in all_c if firm_profile.get(c,0)>0 or diversified.get(c,0)>0])
+                profile_change_df = profile_change_df.sort_values("abs_change", ascending=False).head(15).reset_index(drop=True)
+            else:
+                comparison_df = pd.DataFrame()
+                plan = {}
+                profile_change_df = pd.DataFrame()
+        except Exception as e:
+            comparison_df = pd.DataFrame()
+            plan = {}
+            profile_change_df = pd.DataFrame()
         sourcing_vector_for_pdf = sourcing_vector
 
 # ============================================================
