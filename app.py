@@ -29,7 +29,7 @@ def load_backend():
     with open("W_only.pkl", "rb") as f:
         W_np = pickle.load(f)
 
-    st.info("Building network matrices... this takes about 2 minutes on first load.")
+    print("Building network matrices...")
 
     countries = meta["GLOBAL_COUNTRIES"]
     idx = {c: i for i, c in enumerate(countries)}
