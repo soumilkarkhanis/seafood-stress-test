@@ -704,7 +704,7 @@ with st.sidebar:
     else:
         st.caption("Countries you source from")
         _firm_opts = [f"{c_name(c)} ({c})" for c in ALL_COUNTRIES_SORTED]
-        _firm_sel  = st.multiselect("", _firm_opts, label_visibility="collapsed")
+        _firm_sel  = st.multiselect("", _firm_opts, label_visibility="collapsed", key="firm_countries")
         firm_shares = {}
         if _firm_sel:
             st.caption("Sourcing share per country (must sum to 100%)")
@@ -725,7 +725,7 @@ with st.sidebar:
     st.markdown('<div class="sidebar-section">Shock Scenario</div>', unsafe_allow_html=True)
     st.caption("Select countries experiencing a supply disruption")
     _shock_opts = [f"{c_name(c)} ({c})" for c in ALL_COUNTRIES_SORTED]
-    _shock_sel  = st.multiselect("", _shock_opts, label_visibility="collapsed")
+    _shock_sel  = st.multiselect("", _shock_opts, label_visibility="collapsed", key="shock_countries")
     shock_countries = [d.split("(")[-1].rstrip(")") for d in _shock_sel]
 
     shock_dict = {}
